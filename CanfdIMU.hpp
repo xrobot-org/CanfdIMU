@@ -22,6 +22,7 @@ repository: https://github.com/xrobot-org/CanfdIMU
 #include "can.hpp"
 #include "crc.hpp"
 #include "database.hpp"
+#include "float_encoder.hpp"
 #include "message.hpp"
 #include "timebase.hpp"
 #include "uart.hpp"
@@ -42,8 +43,8 @@ class CanfdIMU : public LibXR::Application {
         uart_(hw.template FindOrExit<LibXR::UART>({"imu_data_uart"})),
         config_(*hw.template FindOrExit<LibXR::Database>({"database"}),
                 "canfd_imu",
-                Configuration{0x30, 1, 1000000, LibXR::UART::Parity::NO_PARITY,
-                              false, true, true, true, false, false, true}),
+                Configuration{0x30, 1, false, true, true, true, false, false,
+                              true}),
         cmd_file_(LibXR::RamFS::CreateFile("set_imu", CommandFunc, this)) {
     app.Register(*this);
 
@@ -96,11 +97,7 @@ class CanfdIMU : public LibXR::Application {
       LibXR::STDIO::Printf("\tset_can_id [id]    设置can id\r\n");
       LibXR::STDIO::Printf(
           "\tenable/disable     "
-          "[accl/gyro/quat/eulr/canfd/can/uart/can_bridge]\r\n");
-      LibXR::STDIO::Printf(
-          "\tset_uart_baud      [0:9600 1:100000 2:115200 3:460800 4:921600 "
-          "5:1000000 6:2000000]\r\n");
-      LibXR::STDIO::Printf("\tset_uart_parity    [0:None, 1:Odd, 2:Even]\r\n");
+          "[accl/gyro/quat/eulr/canfd/can/uart]\r\n");
     } else if (argc == 3 && strcmp(argv[1], "set_delay") == 0) {
       int delay = std::stoi(argv[2]);
 
@@ -173,28 +170,6 @@ class CanfdIMU : public LibXR::Application {
       LibXR::STDIO::Printf("can_id:%d\r\n", id);
 
       imu->config_.Set(imu->config_.data_);
-    } else if (argc == 3 && strcmp(argv[1], "set_uart_baud") == 0) {
-      uint32_t baud = std::stoi(argv[2]);
-      if (baud > 6) {
-        LibXR::STDIO::Printf("baud should be between 0 and 6\r\n");
-        return -1;
-      }
-
-      static const uint32_t UART_BAUD_MAP[] = {9600,   100000,  115200, 460800,
-                                               921600, 1000000, 2000000};
-
-      imu->config_.data_.uart_baudrate = UART_BAUD_MAP[baud];
-      LibXR::STDIO::Printf("baud:%d\r\n", UART_BAUD_MAP[baud]);
-      imu->config_.Set(imu->config_.data_);
-    } else if (argc == 3 && strcmp(argv[1], "set_uart_parity") == 0) {
-      uint32_t parity = std::stoi(argv[2]);
-      if (parity > 2) {
-        LibXR::STDIO::Printf("parity should be between 0 and 2\r\n");
-        return -1;
-      }
-
-      imu->config_.data_.uart_parity = static_cast<LibXR::UART::Parity>(parity);
-      imu->config_.Set(imu->config_.data_);
     } else {
       LibXR::STDIO::Printf("命令错误\r\n");
     }
@@ -211,8 +186,6 @@ class CanfdIMU : public LibXR::Application {
   struct __attribute__((packed)) Configuration {
     uint32_t id;
     uint32_t fb_cycle;
-    uint32_t uart_baudrate;
-    LibXR::UART::Parity uart_parity;
     bool canfd_enabled;
     bool can_enabled;
     bool uart_enabled;
@@ -241,7 +214,7 @@ class CanfdIMU : public LibXR::Application {
     float eulr[3] = {0.0f};
   };
 
-  struct __attribute__((packed)) CanData3 {
+  union CanData3 {
     struct __attribute__((packed)) {
       int32_t data1 : 21;
       int32_t data2 : 21;
@@ -282,8 +255,7 @@ class CanfdIMU : public LibXR::Application {
   Eigen::Matrix<float, 3, 1> accl_ = {0.0f, 0.0f, 0.0f};
 
   static void ThreadUart(CanfdIMU* self) {
-    self->uart_->SetConfig({self->config_.data_.uart_baudrate,
-                            self->config_.data_.uart_parity, 8, 1});
+    self->uart_->SetConfig({1000000, LibXR::UART::Parity::NO_PARITY, 8, 1});
 
     auto sub_accl = LibXR::Topic(self->accl_topic_name_, sizeof(self->accl_));
     auto sub_gyro = LibXR::Topic(self->gyro_topic_name_, sizeof(self->gyro_));
@@ -354,47 +326,51 @@ class CanfdIMU : public LibXR::Application {
         self->can_->AddMessage(pack);
       } else if (self->config_.data_.can_enabled) {
         classic_pack.type = LibXR::CAN::Type::STANDARD;
+
+        using Encoder21 = LibXR::FloatEncoder<21>;
+
         if (self->config_.data_.gyro_enabled) {
           classic_pack.id =
               self->config_.data_.id + static_cast<uint32_t>(CanPackID::GYRO);
-          constexpr float ENCODE_FACTOR =
-              1.0 / (M_PI / 180.0 / 2000) * (static_cast<double>(1 << 20) - 1);
-          can_data3->data1 = self->gyro_.x() * ENCODE_FACTOR;
-          can_data3->data2 = self->gyro_.y() * ENCODE_FACTOR;
-          can_data3->data3 = self->gyro_.z() * ENCODE_FACTOR;
+          Encoder21 encoder(-2000.0f * M_PI / 180.0f,
+                            2000.0f * M_PI / 180.0f);  // rad/s
+          can_data3->data1 = encoder.Encode(self->gyro_.x());
+          can_data3->data2 = encoder.Encode(self->gyro_.y());
+          can_data3->data3 = encoder.Encode(self->gyro_.z());
+
           self->can_->AddMessage(classic_pack);
         }
 
         if (self->config_.data_.accl_enabled) {
           classic_pack.id =
               self->config_.data_.id + static_cast<uint32_t>(CanPackID::ACCL);
-          constexpr float ENCODE_FACTOR =
-              1.0 / 24.0 * (static_cast<double>(1 << 20) - 1);
-          can_data3->data1 = self->accl_.x() * ENCODE_FACTOR;
-          can_data3->data2 = self->accl_.y() * ENCODE_FACTOR;
-          can_data3->data3 = self->accl_.z() * ENCODE_FACTOR;
+          Encoder21 encoder(-24.0f, 24.0f);  // ±24g
+          can_data3->data1 = encoder.Encode(self->accl_.x());
+          can_data3->data2 = encoder.Encode(self->accl_.y());
+          can_data3->data3 = encoder.Encode(self->accl_.z());
+
           self->can_->AddMessage(classic_pack);
         }
 
         if (self->config_.data_.eulr_enabled) {
           classic_pack.id =
               self->config_.data_.id + static_cast<uint32_t>(CanPackID::EULR);
-          constexpr float ENCODE_FACTOR =
-              1.0 / M_2PI * (static_cast<double>(1 << 20) - 1);
-          can_data3->data1 = self->eulr_.pitch_ * ENCODE_FACTOR;
-          can_data3->data2 = self->eulr_.roll_ * ENCODE_FACTOR;
-          can_data3->data3 = self->eulr_.yaw_ * ENCODE_FACTOR;
+          Encoder21 encoder(-M_PI, M_PI);  // Euler angles in rad
+          can_data3->data1 = encoder.Encode(self->eulr_.pitch_);
+          can_data3->data2 = encoder.Encode(self->eulr_.roll_);
+          can_data3->data3 = encoder.Encode(self->eulr_.yaw_);
           self->can_->AddMessage(classic_pack);
         }
 
         if (self->config_.data_.quat_enabled) {
           classic_pack.id =
               self->config_.data_.id + static_cast<uint32_t>(CanPackID::QUAT);
-          constexpr float ENCODE_FACTOR = 1.0 * INT16_MAX;
-          can_data4->data[0] = self->quat_.w() * ENCODE_FACTOR;
-          can_data4->data[1] = self->quat_.x() * ENCODE_FACTOR;
-          can_data4->data[2] = self->quat_.y() * ENCODE_FACTOR;
-          can_data4->data[3] = self->quat_.z() * ENCODE_FACTOR;
+          constexpr float SCALE =
+              static_cast<float>(INT16_MAX);  // int16_t scaling
+          can_data4->data[0] = static_cast<int16_t>(self->quat_.w() * SCALE);
+          can_data4->data[1] = static_cast<int16_t>(self->quat_.x() * SCALE);
+          can_data4->data[2] = static_cast<int16_t>(self->quat_.y() * SCALE);
+          can_data4->data[3] = static_cast<int16_t>(self->quat_.z() * SCALE);
           self->can_->AddMessage(classic_pack);
         }
       }
