@@ -12,6 +12,7 @@ constructor_args:
   - task_stack_depth_uart: 384
   - task_stack_depth_can: 384
 required_hardware: imu_fdcan imu_data_uart ramfs database
+repository: https://github.com/xrobot-org/CanfdIMU
 === END MANIFEST === */
 // clang-format on
 
