@@ -27,13 +27,12 @@ repository: https://github.com/xrobot-org/CanfdIMU
 #include "timebase.hpp"
 #include "uart.hpp"
 
-template <typename HardwareContainer>
 class CanfdIMU : public LibXR::Application {
  public:
-  explicit CanfdIMU(HardwareContainer& hw, LibXR::ApplicationManager& app,
-                    const char* accl_topic, const char* gyro_topic,
-                    const char* quat_topic, const char* eulr_topic,
-                    uint32_t task_stack_depth_uart,
+  explicit CanfdIMU(LibXR::HardwareContainer& hw,
+                    LibXR::ApplicationManager& app, const char* accl_topic,
+                    const char* gyro_topic, const char* quat_topic,
+                    const char* eulr_topic, uint32_t task_stack_depth_uart,
                     uint32_t task_stack_depth_can)
       : accl_topic_name_(accl_topic),
         gyro_topic_name_(gyro_topic),
@@ -60,8 +59,7 @@ class CanfdIMU : public LibXR::Application {
     // Optional: Add self-check, debug output, frequency monitor, etc.
   }
 
-  static int CommandFunc(CanfdIMU<HardwareContainer>* imu, int argc,
-                         char** argv) {
+  static int CommandFunc(CanfdIMU* imu, int argc, char** argv) {
     if (argc == 1) {
       if (imu->config_.data_.canfd_enabled) {
         LibXR::STDIO::Printf("canfd mode\r\n");
@@ -356,9 +354,9 @@ class CanfdIMU : public LibXR::Application {
           classic_pack.id =
               self->config_.data_.id + static_cast<uint32_t>(CanPackID::EULR);
           Encoder21 encoder(-M_PI, M_PI);  // Euler angles in rad
-          can_data3->data1 = encoder.Encode(self->eulr_.pitch_);
-          can_data3->data2 = encoder.Encode(self->eulr_.roll_);
-          can_data3->data3 = encoder.Encode(self->eulr_.yaw_);
+          can_data3->data1 = encoder.Encode(self->eulr_.Pitch());
+          can_data3->data2 = encoder.Encode(self->eulr_.Roll());
+          can_data3->data3 = encoder.Encode(self->eulr_.Yaw());
           self->can_->AddMessage(classic_pack);
         }
 
