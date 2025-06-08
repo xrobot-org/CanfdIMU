@@ -286,7 +286,7 @@ class CanfdIMU : public LibXR::Application {
             reinterpret_cast<const uint8_t*>(&send_buffer),
             sizeof(Data) - sizeof(uint8_t));
 
-        self->uart_->write_port_(send_buffer, write_op);
+        self->uart_->Write(send_buffer, write_op);
       }
 
       LibXR::Thread::SleepUntil(last_waskup_time, self->config_.data_.fb_cycle);
