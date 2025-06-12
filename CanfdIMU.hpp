@@ -1,8 +1,7 @@
 #pragma once
 
 // clang-format off
-/* === MODULE MANIFEST ===
-module_name: CanfdIMU
+/* === MODULE MANIFEST V2 ===
 module_description: CANFD/串口IMU通信模块 CANFD/UART IMU Communication Module
 constructor_args:
   - accl_topic: "imu_accl"
@@ -11,8 +10,9 @@ constructor_args:
   - eulr_topic: "imu_eulr"
   - task_stack_depth_uart: 384
   - task_stack_depth_can: 384
+template_args: []
 required_hardware: imu_fdcan imu_data_uart ramfs database
-repository: https://github.com/xrobot-org/CanfdIMU
+depends: []
 === END MANIFEST === */
 // clang-format on
 
