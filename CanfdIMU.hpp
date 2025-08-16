@@ -255,10 +255,24 @@ class CanfdIMU : public LibXR::Application {
   static void ThreadUart(CanfdIMU* self) {
     self->uart_->SetConfig({1000000, LibXR::UART::Parity::NO_PARITY, 8, 1});
 
-    auto sub_accl = LibXR::Topic(self->accl_topic_name_, sizeof(self->accl_));
-    auto sub_gyro = LibXR::Topic(self->gyro_topic_name_, sizeof(self->gyro_));
-    auto sub_quat = LibXR::Topic(self->quat_topic_name_, sizeof(self->quat_));
-    auto sub_eulr = LibXR::Topic(self->eulr_topic_name_, sizeof(self->eulr_));
+    auto tp_accl = LibXR::Topic(self->accl_topic_name_, sizeof(self->accl_));
+    auto tp_gyro = LibXR::Topic(self->gyro_topic_name_, sizeof(self->gyro_));
+    auto tp_quat = LibXR::Topic(self->quat_topic_name_, sizeof(self->quat_));
+    auto tp_eulr = LibXR::Topic(self->eulr_topic_name_, sizeof(self->eulr_));
+
+    auto sub_accl =
+        LibXR::Topic::ASyncSubscriber<Eigen::Matrix<float, 3, 1>>(tp_accl);
+    auto sub_gyro =
+        LibXR::Topic::ASyncSubscriber<Eigen::Matrix<float, 3, 1>>(tp_gyro);
+    auto sub_quat =
+        LibXR::Topic::ASyncSubscriber<LibXR::Quaternion<float>>(tp_quat);
+    auto sub_eulr =
+        LibXR::Topic::ASyncSubscriber<LibXR::EulerAngle<float>>(tp_eulr);
+
+    sub_accl.StartWaiting();
+    sub_gyro.StartWaiting();
+    sub_quat.StartWaiting();
+    sub_eulr.StartWaiting();
 
     Data send_buffer = {};
     LibXR::WriteOperation write_op(self->uart_write_sem_);
@@ -266,10 +280,24 @@ class CanfdIMU : public LibXR::Application {
     auto last_waskup_time = LibXR::Timebase::GetMilliseconds();
 
     while (true) {
-      sub_accl.DumpData(self->accl_);
-      sub_gyro.DumpData(self->gyro_);
-      sub_quat.DumpData(self->quat_);
-      sub_eulr.DumpData(self->eulr_);
+      if (sub_accl.Available()) {
+        self->accl_ = sub_accl.GetData();
+        sub_accl.StartWaiting();
+      }
+
+      if (sub_gyro.Available()) {
+        self->gyro_ = sub_gyro.GetData();
+        sub_gyro.StartWaiting();
+      }
+
+      if (sub_quat.Available()) {
+        self->quat_ = sub_quat.GetData();
+      }
+
+      if (sub_eulr.Available()) {
+        self->eulr_ = sub_eulr.GetData();
+        sub_eulr.StartWaiting();
+      }
 
       if (self->config_.data_.uart_enabled) {
         send_buffer.prefix = 0xA5;
