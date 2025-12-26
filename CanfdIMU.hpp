@@ -327,6 +327,7 @@ class CanfdIMU : public LibXR::Application {
     LibXR::FDCAN::FDPack pack = {};
 
     LibXR::CAN::ClassicPack classic_pack = {};
+    classic_pack.dlc = 8;
 
     CanData3* can_data3 = reinterpret_cast<CanData3*>(classic_pack.data);
     CanData4* can_data4 = reinterpret_cast<CanData4*>(classic_pack.data);
