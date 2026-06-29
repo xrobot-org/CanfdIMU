@@ -255,10 +255,10 @@ class CanfdIMU : public LibXR::Application {
   static void ThreadUart(CanfdIMU* self) {
     self->uart_->SetConfig({1000000, LibXR::UART::Parity::NO_PARITY, 8, 1});
 
-    auto tp_accl = LibXR::Topic(self->accl_topic_name_, sizeof(self->accl_));
-    auto tp_gyro = LibXR::Topic(self->gyro_topic_name_, sizeof(self->gyro_));
-    auto tp_quat = LibXR::Topic(self->quat_topic_name_, sizeof(self->quat_));
-    auto tp_eulr = LibXR::Topic(self->eulr_topic_name_, sizeof(self->eulr_));
+    auto tp_accl = LibXR::Topic::CreateTopic<decltype(self->accl_)>(self->accl_topic_name_);
+    auto tp_gyro = LibXR::Topic::CreateTopic<decltype(self->gyro_)>(self->gyro_topic_name_);
+    auto tp_quat = LibXR::Topic::CreateTopic<decltype(self->quat_)>(self->quat_topic_name_);
+    auto tp_eulr = LibXR::Topic::CreateTopic<decltype(self->eulr_)>(self->eulr_topic_name_);
 
     auto sub_accl =
         LibXR::Topic::ASyncSubscriber<Eigen::Matrix<float, 3, 1>>(tp_accl);
