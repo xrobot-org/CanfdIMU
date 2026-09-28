@@ -57,11 +57,6 @@ class CanfdIMU
                        LibXR::Thread::Priority::MEDIUM);
   }
 
-  void OnMonitor()
-  {
-    // Optional: Add self-check, debug output, frequency monitor, etc.
-  }
-
   static int CommandFunc(CanfdIMU* imu, int argc, char** argv)
   {
     if (argc == 1)
