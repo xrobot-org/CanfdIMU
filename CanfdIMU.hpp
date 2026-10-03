@@ -469,6 +469,7 @@ class CanfdIMU
       if (sub_quat.Available())
       {
         self->quat_ = sub_quat.GetData();
+        sub_quat.StartWaiting();
       }
 
       if (sub_eulr.Available())
