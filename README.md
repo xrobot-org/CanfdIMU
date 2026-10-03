@@ -15,7 +15,7 @@ RamFS 命令 `set_imu`：
 
 - `set_imu`：打印当前 CAN FD、CAN 与 UART 状态、周期、ID 和用法。
 - `set_imu set_delay <ms>`：设置发送周期，限制在 1 到 1000 ms。
-- `set_imu set_can_id <id>`：设置 ID，即 CAN 基础 ID，同时写入 UART 帧的 `id`。
+- `set_imu set_can_id <id>`：设置 ID（0–255），即 CAN 基础 ID，同时写入 UART 帧的 `id`。
 - `set_imu enable|disable accl|gyro|quat|eulr|canfd|can|uart`：开关单项输出。`enable canfd` 同时开启 `can`，`enable can` 同时关闭 `canfd`。
 
 每条设置命令都写入 Database。默认配置：ID `0x30`，周期 1 ms，CAN FD 关闭，经典 CAN 与 UART 开启，经典 CAN 上发送角速度和欧拉角。
@@ -31,7 +31,7 @@ The RamFS command `set_imu`:
 
 - `set_imu`: print the current CAN FD, CAN and UART state, the period, the ID and the usage.
 - `set_imu set_delay <ms>`: set the send period, limited to 1 to 1000 ms.
-- `set_imu set_can_id <id>`: set the ID, which is the CAN base ID and is also written to the `id` field of the UART frame.
+- `set_imu set_can_id <id>`: set the ID (0–255), which is the CAN base ID and is also written to the `id` field of the UART frame.
 - `set_imu enable|disable accl|gyro|quat|eulr|canfd|can|uart`: switch one output. `enable canfd` also enables `can`, and `enable can` also disables `canfd`.
 
 Every setting command writes the Database. The default configuration is: ID `0x30`, period 1 ms, CAN FD disabled, classic CAN and UART enabled, angular velocity and Euler angles sent on classic CAN.

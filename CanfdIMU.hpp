@@ -286,6 +286,12 @@ class CanfdIMU
         return -1;
       }
 
+      if (id < 0 || id > 0xFF)
+      {
+        LibXR::STDIO::Printf<"can_id 超出范围 (0-255)\r\n">();
+        return -1;
+      }
+
       imu->config_.data_.id = id;
 
       LibXR::STDIO::Printf<"can_id:%d\r\n">(id);
