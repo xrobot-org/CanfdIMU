@@ -2,7 +2,7 @@
 
 // clang-format off
 /* === MODULE MANIFEST V2 ===
-module_description: CANFD/串口IMU通信模块 CANFD/UART IMU Communication Module
+module_description: CAN FD 与 UART IMU 数据转发模块 / Module that forwards IMU data over CAN FD and UART
 depends: []
 === END MANIFEST === */
 // clang-format on
