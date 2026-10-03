@@ -64,12 +64,14 @@ class CanfdIMU
    * @param param 配置参数。
    *              Configuration parameters.
    */
-  explicit CanfdIMU(
-      LibXR::FDCAN& can_bus,
-      LibXR::UART& uart,
-      LibXR::Database& database,
-      LibXR::RamFS& ramfs,
-      const Param& param = {.accl_topic = "imu_accl", .gyro_topic = "imu_gyro", .quat_topic = "imu_quat", .eulr_topic = "imu_eulr", .task_stack_depth_uart = 384, .task_stack_depth_can = 384})
+  explicit CanfdIMU(LibXR::FDCAN& can_bus, LibXR::UART& uart, LibXR::Database& database,
+                    LibXR::RamFS& ramfs,
+                    const Param& param = {.accl_topic = "imu_accl",
+                                          .gyro_topic = "imu_gyro",
+                                          .quat_topic = "imu_quat",
+                                          .eulr_topic = "imu_eulr",
+                                          .task_stack_depth_uart = 384,
+                                          .task_stack_depth_can = 384})
       : accl_topic_name_(param.accl_topic),
         gyro_topic_name_(param.gyro_topic),
         quat_topic_name_(param.quat_topic),
@@ -77,7 +79,15 @@ class CanfdIMU
         can_(std::addressof(can_bus)),
         uart_(std::addressof(uart)),
         config_(database, "canfd_imu",
-                Configuration{0x30, 1, false, true, true, true, false, false, true}),
+                Configuration{.id = 0x30,
+                              .fb_cycle = 1,
+                              .canfd_enabled = false,
+                              .can_enabled = true,
+                              .uart_enabled = true,
+                              .eulr_enabled = true,
+                              .quat_enabled = false,
+                              .accl_enabled = false,
+                              .gyro_enabled = true}),
         cmd_file_(LibXR::RamFS::CreateFile("set_imu", CommandFunc, this))
   {
     ramfs.Add(cmd_file_);
@@ -370,7 +380,10 @@ class CanfdIMU
 
   static void ThreadUart(CanfdIMU* self)
   {
-    self->uart_->SetConfig({1000000, LibXR::UART::Parity::NO_PARITY, 8, 1});
+    self->uart_->SetConfig({.baudrate = 1000000,
+                            .parity = LibXR::UART::Parity::NO_PARITY,
+                            .data_bits = 8,
+                            .stop_bits = 1});
 
     auto tp_accl =
         LibXR::Topic::CreateTopic<decltype(self->accl_)>(self->accl_topic_name_);
